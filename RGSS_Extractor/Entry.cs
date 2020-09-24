@@ -1,8 +1,6 @@
-using System;
-
 namespace RGSS_Extractor
 {
-	public class Entry
+    public class Entry
 	{
 		public string name;
 

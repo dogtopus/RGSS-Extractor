@@ -27,6 +27,24 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefineConstants>TRACE;DEBUG</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RootNamespace>
+    </RootNamespace>
+  </PropertyGroup>
+  <PropertyGroup>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>
+    </StartupObject>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>Icon\icon.ico</ApplicationIcon>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System.Windows.Forms" />
@@ -34,25 +52,38 @@
     <Reference Include="System.Drawing" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Helpers\FolderBrowserDialog.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RGSS_Extractor.Properties\Resources.cs" />
     <Compile Include="RGSS_Extractor.Properties\Settings.cs" />
     <Compile Include="RGSS_Extractor\Entry.cs" />
+    <Compile Include="RGSS_Extractor\Extensions.cs" />
     <Compile Include="RGSS_Extractor\Form1.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="RGSS_Extractor\Main_Parser.cs" />
     <Compile Include="RGSS_Extractor\Parser.cs" />
     <Compile Include="RGSS_Extractor\Program.cs" />
+    <Compile Include="RGSS_Extractor\RGSS3A_Fux2Pack_Parser.cs" />
     <Compile Include="RGSS_Extractor\RGSS3A_Parser.cs" />
     <Compile Include="RGSS_Extractor\RGSSAD_Parser.cs" />
-    <Compile Include="RGSS_Extractor\WinFileIO.cs" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="RGSS_Extractor\Form1.zh-TW.resx" />
+    <EmbeddedResource Include="RGSS_Extractor\Form1.zh-MO.resx" />
+    <EmbeddedResource Include="RGSS_Extractor\Form1.zh-HK.resx" />
+    <EmbeddedResource Include="RGSS_Extractor\Form1.zh-CHS.resx" />
     <EmbeddedResource Include="RGSS_Extractor\Form1.resx" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Icon\Data.ico" />
+    <Content Include="Icon\Dir.ico" />
+    <Content Include="Icon\Graphics.ico" />
+    <Content Include="Icon\icon.ico" />
+    <Content Include="Icon\unFile.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -1,68 +1,66 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
 namespace RGSS_Extractor
 {
-	public class Main_Parser
-	{
-		private Parser parser;
+    public class Main_Parser
+    {
+        private Parser parser;
 
-		private Parser get_parser(int version, BinaryReader inFile)
-		{
-			if (version == 1)
-			{
-				return new RGSSAD_Parser(inFile);
-			}
-			if (version == 3)
-			{
-				return new RGSS3A_Parser(inFile);
-			}
-			return null;
-		}
+        private Parser Get_parser(int version, BinaryReader inFile)
+        {
+            switch (version)
+            {
+                case 1:
+                    return new RGSSAD_Parser(inFile);
 
-		public List<Entry> parse_file(string path)
-		{
-			BinaryReader binaryReader = new BinaryReader(File.OpenRead(path));
-			string @string = Encoding.UTF8.GetString(binaryReader.ReadBytes(6));
-			if (@string != "RGSSAD")
-			{
-				return null;
-			}
-			binaryReader.ReadByte();
-			int version = (int)binaryReader.ReadByte();
-			this.parser = this.get_parser(version, binaryReader);
-			if (this.parser == null)
-			{
-				return null;
-			}
-			this.parser.parse_file();
-			return this.parser.entries;
-		}
+                case 3:
+                    return new RGSS3A_Parser(inFile);
 
-		public byte[] get_filedata(Entry e)
-		{
-			return this.parser.read_data(e.offset, e.size, e.datakey);
-		}
+                case 107:
+                    return new RGSS3A_Fux2Pack_Parser(inFile);
 
-		public void export_file(Entry e)
-		{
-			this.parser.write_file(e);
-		}
+                default:
+                    return null;
+            }
+        }
 
-		public void export_archive()
-		{
-			if (this.parser == null)
-			{
-				return;
-			}
-			this.parser.write_entries();
-		}
+        public List<Entry> Parse_file(string path)
+        {
+            MemoryStream fms = new MemoryStream(File.ReadAllBytes(path));
+            BinaryReader binaryReader = new BinaryReader(fms);
+            string fileHead = Encoding.UTF8.GetString(binaryReader.ReadBytes(6));
+            if (!fileHead.Contains("RGSSAD") && !fileHead.Contains("Fux2Pa"))
+            { return null; }
+            binaryReader.ReadByte();
+            int version = binaryReader.ReadByte();
+            parser = Get_parser(version, binaryReader);
+            if (parser == null)
+            { return null; }
+            parser.Parse_file();
+            return parser.entries;
+        }
 
-		public void close_file()
-		{
-			this.parser.close_file();
-		}
-	}
+        public byte[] Get_filedata(Entry e)
+        {
+            return parser.Read_data(e.offset, e.size, e.datakey);
+        }
+
+        public void Export_file(Entry e, string saveDir)
+        {
+            parser.Write_file(e, saveDir);
+        }
+
+        public void Export_archive(string saveDir)
+        {
+            if (parser == null) { return; }
+            parser.Write_entries(saveDir);
+        }
+
+        public void Close_file()
+        {
+            parser.Close_file();
+        }
+    }
 }

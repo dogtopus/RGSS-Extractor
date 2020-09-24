@@ -2,241 +2,332 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows.Forms;
+using WindGoes6.Controls;
 
 namespace RGSS_Extractor
 {
-	public class Form1 : Form
-	{
-		private Main_Parser parser = new Main_Parser();
+    public class Form1 : Form
+    {
+        public static Form1 GetForm1;
 
-		private List<Entry> entries = new List<Entry>();
+        private readonly Main_Parser parser = new Main_Parser();
 
-		private string archive_path = "";
+        private List<Entry> entries = new List<Entry>();
 
-		private IContainer components;
+        private string archive_path = string.Empty;
 
-		private SplitContainer splitContainer1;
+        private IContainer components;
 
-		private TreeView explorer_view;
+        private SplitContainer splitContainer1;
 
-		private OpenFileDialog openFileDialog1;
+        private TreeView explorer_view;
 
-		private MenuStrip menuStrip1;
+        private OpenFileDialog openFileDialog1;
 
-		private ToolStripMenuItem fileToolStripMenuItem;
+        private MenuStrip menuStrip1;
 
-		private ToolStripMenuItem openToolStripMenuItem;
+        private ToolStripMenuItem fileToolStripMenuItem;
 
-		private ToolStripMenuItem closeArchiveToolStripMenuItem;
+        private ToolStripMenuItem openToolStripMenuItem;
 
-		private ToolStripSeparator toolStripSeparator1;
+        private ToolStripMenuItem closeArchiveToolStripMenuItem;
 
-		private ToolStripMenuItem exitToolStripMenuItem;
+        private ToolStripSeparator toolStripSeparator1;
 
-		private PictureBox pic_preview;
+        private ToolStripMenuItem exitToolStripMenuItem;
 
-		private ToolStripMenuItem exportArchiveToolStripMenuItem;
+        private PictureBox pic_preview;
 
-		private ContextMenuStrip explorer_menu;
+        private ToolStripMenuItem exportArchiveToolStripMenuItem;
 
-		private ToolStripMenuItem exportToolStripMenuItem;
+        private ContextMenuStrip explorer_menu;
 
-		public Form1()
-		{
-			this.InitializeComponent();
-		}
+        private ToolStripMenuItem exportToolStripMenuItem;
 
-		private void Form1_DragEnter(object sender, DragEventArgs e)
-		{
-			if (e.Data.GetDataPresent(DataFormats.FileDrop))
-			{
-				e.Effect = DragDropEffects.Copy;
-			}
-		}
+        private FolderBrowserDialog folderBrowserDialog1;
 
-		private void Form1_DragDrop(object sender, DragEventArgs e)
-		{
-			if (e.Data.GetDataPresent(DataFormats.FileDrop))
-			{
-				e.Effect = DragDropEffects.Copy;
-			}
-			string[] array = (string[])e.Data.GetData(DataFormats.FileDrop);
-			this.read_archive(array[0]);
-		}
+        private ToolStripMenuItem githubToolStripMenuItem;
 
-		private void read_archive(string path)
-		{
-			if (path == "")
-			{
-				return;
-			}
-			this.close_archive();
-			this.entries = this.parser.parse_file(path);
-			if (this.entries != null)
-			{
-				this.build_file_list(this.entries);
-				this.archive_path = path;
-			}
-		}
+        private ImageList imageList1;
 
-		private void export_archive()
-		{
-			if (this.parser == null)
-			{
-				return;
-			}
-			this.parser.export_archive();
-		}
+        internal ProgressBar progressBar1;
 
-		private void close_archive()
-		{
-			if (this.archive_path != "")
-			{
-				this.explorer_view.Nodes.Clear();
-				this.pic_preview.Image = null;
-				this.parser.close_file();
-			}
-		}
+        const uint WM_SYSCOMMAND = 0x0112;
+        const uint SC_MOVE = 0xF010;
+        private ToolStripMenuItem project1ToolStripMenuItem;
+        private ToolStripMenuItem authorYIU2ToolStripMenuItem;
+        private ToolStripMenuItem authorKatyushaScarletToolStripMenuItem;
+        const uint HTCAPTION = 0x0002;
 
-		private void build_file_list(List<Entry> entries)
-		{
-			for (int i = 0; i < entries.Count; i++)
-			{
-				Entry entry = entries[i];
-				string[] array = entry.name.Split(new char[]
-				{
-					Path.DirectorySeparatorChar
-				});
-				TreeNode node = this.get_root(array[0]);
-				this.add_path(node, array, entry);
-			}
-		}
+        [DllImport("user32.dll", EntryPoint = "SendMessageA")]
+        private static extern int SendMessage(IntPtr hwnd, uint wMsg, uint wParam, uint lParam);
+        [DllImport("user32.dll")]
+        private static extern int ReleaseCapture();
 
-		private void add_path(TreeNode node, string[] pathbits, Entry e)
-		{
-			for (int i = 1; i < pathbits.Length; i++)
-			{
-				node = this.add_node(node, pathbits[i]);
-			}
-			node.Tag = e;
-		}
+        public Form1(string rgssFile)
+        {
+            try { Thread.CurrentThread.CurrentUICulture = new CultureInfo(CultureInfo.InstalledUICulture.Name); }
+            catch { }
+            InitializeComponent();
+            GetForm1 = this;
+            if (string.IsNullOrWhiteSpace(rgssFile)) { return; }
+            Read_archive(rgssFile);
+        }
 
-		private TreeNode get_root(string key)
-		{
-			if (this.explorer_view.Nodes.ContainsKey(key))
-			{
-				return this.explorer_view.Nodes[key];
-			}
-			return this.explorer_view.Nodes.Add(key, key);
-		}
+        private void Form1_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effect = DragDropEffects.Copy;
+            }
+        }
 
-		private TreeNode add_node(TreeNode node, string key)
-		{
-			if (node.Nodes.ContainsKey(key))
-			{
-				return node.Nodes[key];
-			}
-			return node.Nodes.Add(key, key);
-		}
+        private void Form1_DragDrop(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effect = DragDropEffects.Copy;
+            }
+            string[] array = (string[])e.Data.GetData(DataFormats.FileDrop);
+            Read_archive(array[0]);
+        }
 
-		private void show_image(Entry entry)
-		{
-			byte[] buffer = this.parser.get_filedata(entry);
-			MemoryStream stream = new MemoryStream(buffer);
-			Image image = Image.FromStream(stream);
-			this.pic_preview.Image = image;
-		}
+        private void Read_archive(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path)) { return; }
+            Close_archive();
+            entries = parser.Parse_file(path);
+            if (entries != null)
+            {
+                Build_file_list(entries);
+                archive_path = path;
+                folderBrowserDialog1.SelectedPath = Path.GetDirectoryName(path);
+                exportArchiveToolStripMenuItem.Enabled = closeArchiveToolStripMenuItem.Enabled = true;
+            }
+            else
+            {
+                openFileDialog1.FileName = null;
+                MessageBox.Show(this,
+                    string.Format(GetResString("strMessageBoxOpenFailedContent", "The data format of {0} is not supported."), path),
+                   GetResString("strMessageBoxOpenFailedTitle", "Open failed"),
+                   MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
 
-		private void determine_action(Entry entry)
-		{
-			if (entry.name.EndsWith(".png"))
-			{
-				this.show_image(entry);
-			}
-		}
+        private void Export_archive()
+        {
+            if (parser == null
+                || string.IsNullOrEmpty(archive_path)
+                || FolderBrowserDialogHelper.ShowFolderBrowser(folderBrowserDialog1, this) != DialogResult.OK)
+            { return; }
+            parser.Export_archive(folderBrowserDialog1.SelectedPath);
+        }
 
-		private void explorer_view_AfterSelect(object sender, TreeViewEventArgs e)
-		{
-			if (this.explorer_view.SelectedNode == null || this.explorer_view.SelectedNode.Tag == null)
-			{
-				return;
-			}
-			Entry entry = (Entry)this.explorer_view.SelectedNode.Tag;
-			this.determine_action(entry);
-		}
+        private void Close_archive()
+        {
+            if (!string.IsNullOrEmpty(archive_path))
+            {
+                archive_path = string.Empty;
+                explorer_view.Nodes.Clear();
+                pic_preview.Cursor = Cursors.Default;
+                pic_preview.Image = null;
+                parser.Close_file();
+                exportArchiveToolStripMenuItem.Enabled = closeArchiveToolStripMenuItem.Enabled = false;
+            }
+        }
 
-		private void export_nodes(TreeNode node)
-		{
-			if (node.Tag != null)
-			{
-				Entry e = (Entry)node.Tag;
-				this.parser.export_file(e);
-			}
-			foreach (TreeNode treeNode in node.Nodes)
-			{
-				this.export_nodes(treeNode);
-				if (treeNode.Tag != null)
-				{
-					Entry e = (Entry)treeNode.Tag;
-					this.parser.export_file(e);
-				}
-			}
-		}
+        private void Build_file_list(List<Entry> entries)
+        {
+            for (int i = 0; i < entries.Count; i++)
+            {
+                Entry entry = entries[i];
+                string[] array = entry.name.Split(new char[]
+                {
+                    Path.DirectorySeparatorChar
+                });
+                TreeNode node = Get_root(array[0]);
+                Add_path(node, array, entry);
+            }
+        }
 
-		private void exportToolStripMenuItem_Click(object sender, EventArgs e)
-		{
-			if (this.explorer_view.SelectedNode == null)
-			{
-				return;
-			}
-			this.export_nodes(this.explorer_view.SelectedNode);
-		}
+        private void Add_path(TreeNode node, string[] pathbits, Entry e)
+        {
+            for (int i = 1; i < pathbits.Length; i++)
+            {
+                node = Add_node(node, pathbits[i]);
+            }
+            node.Tag = e;
+        }
 
-		private void explorer_view_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
-		{
-			this.explorer_view.SelectedNode = e.Node;
-		}
+        private TreeNode Get_root(string key)
+        {
+            return explorer_view.Nodes.ContainsKey(key) ? explorer_view.Nodes[key] : explorer_view.Nodes.Add(key, key);
+        }
 
-		private void openToolStripMenuItem_Click(object sender, EventArgs e)
-		{
-			this.openFileDialog1.ShowDialog();
-			this.read_archive(this.openFileDialog1.FileName);
-		}
+        private TreeNode Add_node(TreeNode node, string key)
+        {
+            int icon = Get_node_icon(key);
+            return node.Nodes.ContainsKey(key) ? node.Nodes[key] : node.Nodes.Add(key, key, icon, icon);
+        }
 
-		private void exportArchiveToolStripMenuItem_Click(object sender, EventArgs e)
-		{
-			this.export_archive();
-		}
+        private int Get_node_icon(string key)
+        {
+            int icon = 0;
 
-		private void closeArchiveToolStripMenuItem_Click(object sender, EventArgs e)
-		{
-			this.close_archive();
-		}
+            if (key.ExtensionContains(".rvdata"))
+            { icon = 1; }
+            else if (key.ExtensionContains(".png", ".jpg", "gif", "bmp", "ico"))
+            { icon = 2; }
+            else if (!string.IsNullOrWhiteSpace(Path.GetExtension(key)))
+            { icon = 3; }
 
-		private void exitToolStripMenuItem_Click(object sender, EventArgs e)
-		{
-			this.close_archive();
-			Application.Exit();
-		}
+            return icon;
+        }
 
-		protected override void Dispose(bool disposing)
-		{
-			if (disposing && this.components != null)
-			{
-				this.components.Dispose();
-			}
-			base.Dispose(disposing);
-		}
+        private void Show_image(Entry entry)
+        {
+            byte[] buffer = parser.Get_filedata(entry);
+            using (MemoryStream stream = new MemoryStream(buffer))
+            {
+                Image image = Image.FromStream(stream);
+                pic_preview.Image = image;
+                pic_preview.Cursor = Cursors.SizeAll;
+            }
+        }
 
-		private void InitializeComponent()
-		{
+        private void Determine_action(Entry entry)
+        {
+            if (entry.name.ExtensionContains(".png", ".jpg", "gif", "bmp", "ico"))
+            {
+                Show_image(entry);
+            }
+            else
+            {
+                pic_preview.Image = null;
+                pic_preview.Cursor = Cursors.Default;
+            }
+        }
+
+        private void Explorer_view_AfterSelect(object sender, TreeViewEventArgs e)
+        {
+            if (explorer_view.SelectedNode == null || explorer_view.SelectedNode.Tag == null)
+            {
+                return;
+            }
+            Entry entry = (Entry)explorer_view.SelectedNode.Tag;
+            Determine_action(entry);
+        }
+
+        private void Export_nodes(TreeNode node, string saveDir)
+        {
+            progressBar1.Maximum = node.Nodes.Count > 0 ? node.Nodes.Count : progressBar1.Maximum;
+            progressBar1.Value = progressBar1.Value < progressBar1.Maximum ? progressBar1.Value : 0;
+            if (node.Tag != null)
+            {
+                Entry e = (Entry)node.Tag;
+                parser.Export_file(e, saveDir);
+                progressBar1.Value++;
+            }
+            foreach (TreeNode treeNode in node.Nodes)
+            {
+                Export_nodes(treeNode, saveDir);
+                if (treeNode.Tag != null)
+                {
+                    Entry e = (Entry)treeNode.Tag;
+                    parser.Export_file(e, saveDir);
+                }
+            }
+        }
+
+        private void ExportToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (explorer_view.SelectedNode == null
+                || FolderBrowserDialogHelper.ShowFolderBrowser(folderBrowserDialog1, this) != DialogResult.OK)
+            { return; }
+            progressBar1.Visible = true;
+            Export_nodes(explorer_view.SelectedNode, folderBrowserDialog1.SelectedPath);
+            progressBar1.Visible = false;
+        }
+
+        private void Explorer_view_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
+        {
+            explorer_view.SelectedNode = e.Node;
+        }
+
+        private void OpenToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (openFileDialog1.ShowDialog() != DialogResult.OK)
+            { openFileDialog1.FileName = null; return; }
+            Read_archive(openFileDialog1.FileName);
+        }
+
+        private void ExportArchiveToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Export_archive();
+        }
+
+        private void CloseArchiveToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Close_archive();
+        }
+
+        private void ExitToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Close_archive();
+            Application.Exit();
+        }
+
+        private void Pic_preview_MouseDown(object sender, MouseEventArgs e)
+        {
+            ReleaseCapture();
+            SendMessage((sender as Control).Handle, WM_SYSCOMMAND, SC_MOVE + HTCAPTION, 0);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && components != null)
+            {
+                components.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        private void Project1ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            System.Diagnostics.Process.Start("https://github.com/usaginya/RGSS-Extractor");
+        }
+
+        private void AuthorYIU2ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            System.Diagnostics.Process.Start("https://github.com/usaginya");
+        }
+
+        private void AuthorKatyushaScarletToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            System.Diagnostics.Process.Start("https://github.com/KatyushaScarlet");
+        }
+
+        private string GetResString(string name, string defaultStr = "")
+        {
+            string resString = Extensions.ApplyResource(GetType(), name);
+            return string.IsNullOrWhiteSpace(resString) ? defaultStr : resString;
+        }
+
+        private void InitializeComponent()
+        {
             this.components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
+            this.progressBar1 = new System.Windows.Forms.ProgressBar();
             this.explorer_view = new System.Windows.Forms.TreeView();
             this.explorer_menu = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.exportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.imageList1 = new System.Windows.Forms.ImageList(this.components);
             this.pic_preview = new System.Windows.Forms.PictureBox();
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
@@ -246,6 +337,11 @@ namespace RGSS_Extractor
             this.closeArchiveToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.githubToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.project1ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.authorYIU2ToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.authorKatyushaScarletToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.folderBrowserDialog1 = new System.Windows.Forms.FolderBrowserDialog();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
@@ -257,70 +353,74 @@ namespace RGSS_Extractor
             // 
             // splitContainer1
             // 
-            this.splitContainer1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.splitContainer1.Location = new System.Drawing.Point(0, 25);
+            resources.ApplyResources(this.splitContainer1, "splitContainer1");
             this.splitContainer1.Name = "splitContainer1";
             // 
             // splitContainer1.Panel1
             // 
+            this.splitContainer1.Panel1.Controls.Add(this.progressBar1);
             this.splitContainer1.Panel1.Controls.Add(this.explorer_view);
             // 
             // splitContainer1.Panel2
             // 
-            this.splitContainer1.Panel2.AutoScroll = true;
-            this.splitContainer1.Panel2.BackColor = System.Drawing.Color.Transparent;
+            this.splitContainer1.Panel2.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(230)))), ((int)(((byte)(235)))), ((int)(((byte)(220)))));
             this.splitContainer1.Panel2.Controls.Add(this.pic_preview);
-            this.splitContainer1.Size = new System.Drawing.Size(782, 372);
-            this.splitContainer1.SplitterDistance = 260;
-            this.splitContainer1.TabIndex = 0;
+            // 
+            // progressBar1
+            // 
+            resources.ApplyResources(this.progressBar1, "progressBar1");
+            this.progressBar1.Name = "progressBar1";
+            this.progressBar1.Step = 1;
             // 
             // explorer_view
             // 
             this.explorer_view.ContextMenuStrip = this.explorer_menu;
-            this.explorer_view.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.explorer_view.Location = new System.Drawing.Point(0, 0);
+            resources.ApplyResources(this.explorer_view, "explorer_view");
+            this.explorer_view.ImageList = this.imageList1;
             this.explorer_view.Name = "explorer_view";
-            this.explorer_view.Size = new System.Drawing.Size(260, 372);
-            this.explorer_view.TabIndex = 0;
-            this.explorer_view.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.explorer_view_AfterSelect);
-            this.explorer_view.NodeMouseClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.explorer_view_NodeMouseClick);
+            this.explorer_view.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.Explorer_view_AfterSelect);
+            this.explorer_view.NodeMouseClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.Explorer_view_NodeMouseClick);
             // 
             // explorer_menu
             // 
             this.explorer_menu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.exportToolStripMenuItem});
             this.explorer_menu.Name = "contextMenuStrip1";
-            this.explorer_menu.Size = new System.Drawing.Size(115, 26);
+            resources.ApplyResources(this.explorer_menu, "explorer_menu");
             // 
             // exportToolStripMenuItem
             // 
             this.exportToolStripMenuItem.Name = "exportToolStripMenuItem";
-            this.exportToolStripMenuItem.Size = new System.Drawing.Size(114, 22);
-            this.exportToolStripMenuItem.Text = "Export";
-            this.exportToolStripMenuItem.Click += new System.EventHandler(this.exportToolStripMenuItem_Click);
+            resources.ApplyResources(this.exportToolStripMenuItem, "exportToolStripMenuItem");
+            this.exportToolStripMenuItem.Click += new System.EventHandler(this.ExportToolStripMenuItem_Click);
+            // 
+            // imageList1
+            // 
+            this.imageList1.ImageStream = ((System.Windows.Forms.ImageListStreamer)(resources.GetObject("imageList1.ImageStream")));
+            this.imageList1.TransparentColor = System.Drawing.Color.Transparent;
+            this.imageList1.Images.SetKeyName(0, "Dir.ico");
+            this.imageList1.Images.SetKeyName(1, "Data.ico");
+            this.imageList1.Images.SetKeyName(2, "Graphics.ico");
+            this.imageList1.Images.SetKeyName(3, "unFile.ico");
             // 
             // pic_preview
             // 
-            this.pic_preview.Location = new System.Drawing.Point(4, 4);
+            resources.ApplyResources(this.pic_preview, "pic_preview");
             this.pic_preview.Name = "pic_preview";
-            this.pic_preview.Size = new System.Drawing.Size(138, 130);
-            this.pic_preview.SizeMode = System.Windows.Forms.PictureBoxSizeMode.AutoSize;
-            this.pic_preview.TabIndex = 0;
             this.pic_preview.TabStop = false;
+            this.pic_preview.MouseDown += new System.Windows.Forms.MouseEventHandler(this.Pic_preview_MouseDown);
             // 
             // openFileDialog1
             // 
-            this.openFileDialog1.Filter = "RGSS archives|*.rgssad;*.rgss2a;*.rgss3a";
+            resources.ApplyResources(this.openFileDialog1, "openFileDialog1");
             // 
             // menuStrip1
             // 
             this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.fileToolStripMenuItem});
-            this.menuStrip1.Location = new System.Drawing.Point(0, 0);
+            this.fileToolStripMenuItem,
+            this.githubToolStripMenuItem});
+            resources.ApplyResources(this.menuStrip1, "menuStrip1");
             this.menuStrip1.Name = "menuStrip1";
-            this.menuStrip1.Size = new System.Drawing.Size(782, 25);
-            this.menuStrip1.TabIndex = 1;
-            this.menuStrip1.Text = "menuStrip1";
             // 
             // fileToolStripMenuItem
             // 
@@ -331,54 +431,77 @@ namespace RGSS_Extractor
             this.toolStripSeparator1,
             this.exitToolStripMenuItem});
             this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
-            this.fileToolStripMenuItem.Size = new System.Drawing.Size(39, 21);
-            this.fileToolStripMenuItem.Text = "File";
+            resources.ApplyResources(this.fileToolStripMenuItem, "fileToolStripMenuItem");
             // 
             // openToolStripMenuItem
             // 
             this.openToolStripMenuItem.Name = "openToolStripMenuItem";
-            this.openToolStripMenuItem.Size = new System.Drawing.Size(160, 22);
-            this.openToolStripMenuItem.Text = "Open Archive";
-            this.openToolStripMenuItem.Click += new System.EventHandler(this.openToolStripMenuItem_Click);
+            resources.ApplyResources(this.openToolStripMenuItem, "openToolStripMenuItem");
+            this.openToolStripMenuItem.Click += new System.EventHandler(this.OpenToolStripMenuItem_Click);
             // 
             // exportArchiveToolStripMenuItem
             // 
+            resources.ApplyResources(this.exportArchiveToolStripMenuItem, "exportArchiveToolStripMenuItem");
             this.exportArchiveToolStripMenuItem.Name = "exportArchiveToolStripMenuItem";
-            this.exportArchiveToolStripMenuItem.Size = new System.Drawing.Size(160, 22);
-            this.exportArchiveToolStripMenuItem.Text = "Export Archive";
-            this.exportArchiveToolStripMenuItem.Click += new System.EventHandler(this.exportArchiveToolStripMenuItem_Click);
+            this.exportArchiveToolStripMenuItem.Click += new System.EventHandler(this.ExportArchiveToolStripMenuItem_Click);
             // 
             // closeArchiveToolStripMenuItem
             // 
+            resources.ApplyResources(this.closeArchiveToolStripMenuItem, "closeArchiveToolStripMenuItem");
             this.closeArchiveToolStripMenuItem.Name = "closeArchiveToolStripMenuItem";
-            this.closeArchiveToolStripMenuItem.Size = new System.Drawing.Size(160, 22);
-            this.closeArchiveToolStripMenuItem.Text = "Close Archive";
-            this.closeArchiveToolStripMenuItem.Click += new System.EventHandler(this.closeArchiveToolStripMenuItem_Click);
+            this.closeArchiveToolStripMenuItem.Click += new System.EventHandler(this.CloseArchiveToolStripMenuItem_Click);
             // 
             // toolStripSeparator1
             // 
             this.toolStripSeparator1.Name = "toolStripSeparator1";
-            this.toolStripSeparator1.Size = new System.Drawing.Size(157, 6);
+            resources.ApplyResources(this.toolStripSeparator1, "toolStripSeparator1");
             // 
             // exitToolStripMenuItem
             // 
             this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            this.exitToolStripMenuItem.Size = new System.Drawing.Size(160, 22);
-            this.exitToolStripMenuItem.Text = "Exit";
-            this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
+            resources.ApplyResources(this.exitToolStripMenuItem, "exitToolStripMenuItem");
+            this.exitToolStripMenuItem.Click += new System.EventHandler(this.ExitToolStripMenuItem_Click);
+            // 
+            // githubToolStripMenuItem
+            // 
+            this.githubToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.project1ToolStripMenuItem,
+            this.authorYIU2ToolStripMenuItem,
+            this.authorKatyushaScarletToolStripMenuItem});
+            this.githubToolStripMenuItem.Name = "githubToolStripMenuItem";
+            resources.ApplyResources(this.githubToolStripMenuItem, "githubToolStripMenuItem");
+            // 
+            // project1ToolStripMenuItem
+            // 
+            this.project1ToolStripMenuItem.Name = "project1ToolStripMenuItem";
+            resources.ApplyResources(this.project1ToolStripMenuItem, "project1ToolStripMenuItem");
+            this.project1ToolStripMenuItem.Click += new System.EventHandler(this.Project1ToolStripMenuItem_Click);
+            // 
+            // authorYIU2ToolStripMenuItem
+            // 
+            this.authorYIU2ToolStripMenuItem.Name = "authorYIU2ToolStripMenuItem";
+            resources.ApplyResources(this.authorYIU2ToolStripMenuItem, "authorYIU2ToolStripMenuItem");
+            this.authorYIU2ToolStripMenuItem.Click += new System.EventHandler(this.AuthorYIU2ToolStripMenuItem_Click);
+            // 
+            // authorKatyushaScarletToolStripMenuItem
+            // 
+            this.authorKatyushaScarletToolStripMenuItem.Name = "authorKatyushaScarletToolStripMenuItem";
+            resources.ApplyResources(this.authorKatyushaScarletToolStripMenuItem, "authorKatyushaScarletToolStripMenuItem");
+            this.authorKatyushaScarletToolStripMenuItem.Click += new System.EventHandler(this.AuthorKatyushaScarletToolStripMenuItem_Click);
+            // 
+            // folderBrowserDialog1
+            // 
+            resources.ApplyResources(this.folderBrowserDialog1, "folderBrowserDialog1");
             // 
             // Form1
             // 
             this.AllowDrop = true;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
+            resources.ApplyResources(this, "$this");
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(782, 397);
             this.Controls.Add(this.splitContainer1);
             this.Controls.Add(this.menuStrip1);
             this.MainMenuStrip = this.menuStrip1;
             this.Name = "Form1";
-            this.Text = "RGSS Extract";
-            this.Load += new System.EventHandler(this.Form1_Load);
             this.DragDrop += new System.Windows.Forms.DragEventHandler(this.Form1_DragDrop);
             this.DragEnter += new System.Windows.Forms.DragEventHandler(this.Form1_DragEnter);
             this.splitContainer1.Panel1.ResumeLayout(false);
@@ -393,11 +516,7 @@ namespace RGSS_Extractor
             this.ResumeLayout(false);
             this.PerformLayout();
 
-		}
-
-        private void Form1_Load(object sender, EventArgs e)
-        {
-
         }
+
     }
 }
